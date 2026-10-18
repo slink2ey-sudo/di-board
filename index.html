@@ -92,6 +92,11 @@ textarea#out{width:100%;min-height:200px;font:inherit;font-size:14px;border:1px 
 .scaf{background:var(--zone);border:2px dashed var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
 .scaf .note{font-weight:400;margin-left:4px}
 .scaf-in{font-size:15px;min-height:44px}
+.ai-box{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px}
+.ai-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.ai-row label{font-weight:700;font-size:14px}
+.ai-row input{font:inherit;font-size:14px;min-height:44px;flex:1 1 220px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:6px 10px}
+textarea#ai-out{width:100%;min-height:220px;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:10px}
 details.help{background:var(--surface);border:1.5px solid var(--deep);border-radius:14px;padding:0 16px}
 details.help summary{cursor:pointer;list-style:none;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;font-size:16px;color:var(--deep)}
 details.help summary::-webkit-details-marker{display:none}
@@ -145,6 +150,7 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
           <li><b>이미지로 저장</b>을 눌러 PNG를 받고, 패들렛 게시물에 올려요.</li>
           <li><b>글 복사</b>를 눌러 같은 게시물 본문에 붙여 넣어요.</li>
           <li>최종 기록은 팀장님 워크시트 DI-1 ①~③에 옮겨 적어요.</li>
+          <li>막히면 맨 아래 <b>AI 질문 만들고 복사</b>를 눌러 평소 쓰는 AI에 붙여 넣어요.</li>
         </ul>
         <p class="tip">정리한 내용은 <b>지금 이 기기에만</b> 남아요. 협의가 끝나면 바로 저장해서 올려 주세요. 맨 위에서 팀 번호를 먼저 골라야 해요.</p>
       </section>
@@ -196,6 +202,16 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
           <img id="preview-img" alt="정리 결과 이미지">
         </div>
         <textarea id="out" readonly aria-label="정리 결과 글"></textarea>
+        <div class="ai-box">
+          <h3 style="margin:0;font-size:16px">막힐 때: AI에게 물어보기</h3>
+          <p class="note">지금 놓은 카드와 메모로 질문을 만들어요. 복사해서 평소 쓰는 AI(ChatGPT, Gemini, Claude 등)에 붙여 넣으세요. AI 답은 초안이고, 고르는 건 우리 팀이에요.</p>
+          <div class="ai-row">
+            <label for="grade">학년·교과</label>
+            <input id="grade" placeholder="예: 초등 6학년 사회·과학·국어 (선택)">
+            <button class="btn primary" id="ai-copy" type="button">AI 질문 만들고 복사</button>
+          </div>
+          <textarea id="ai-out" aria-label="AI에게 물어볼 질문" hidden></textarea>
+        </div>
       </section>
     </div>
   </div>
@@ -219,7 +235,7 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
   function fresh(){
     var c={},n=0;
     TYPES.forEach(function(t){t.cards.forEach(function(l,i){var id=t.k+'-'+i;c[id]={type:t.k,label:l,custom:l==='',base:true,where:null,memo:'',order:n++}})});
-    return {zones:ZONES.slice(),cards:c,seq:1000,scaffold:''};
+    return {zones:ZONES.slice(),cards:c,seq:1000,scaffold:'',grade:''};
   }
   try{var raw=localStorage.getItem(KEY);if(raw)all=JSON.parse(raw)||{}}catch(e){all={}}
   try{var tt=parseInt(localStorage.getItem(KEY+'-team'),10);if(tt>=1&&tt<=5)team=tt}catch(e){}
@@ -306,6 +322,7 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
       var g=document.createElement('div');g.className='grid';fill(g,inWhere(where),t.tab+'카드를 놓으세요');z.appendChild(g);
       wireDrop(z,where);sl.appendChild(z)});
     var sc=$('scaffold');if(document.activeElement!==sc)sc.value=s.scaffold||'';
+    var gr=$('grade');if(document.activeElement!==gr)gr.value=s.grade||'';
     var zs=$('zones');zs.innerHTML='';
     s.zones.forEach(function(name,zi){
       var where='z'+zi,z=document.createElement('div');z.className='zone';
@@ -409,6 +426,38 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
   $('reset-no').addEventListener('click',function(){confirmMode(false)});
   $('reset-yes').addEventListener('click',function(){all[team]=fresh();selected=null;tab='content';confirmMode(false);$('preview').hidden=true;save();render();$('status').textContent=team+'팀 보드를 처음 상태로 되돌렸어요.'});
 
+  $('grade').addEventListener('input',function(){st().grade=$('grade').value;save()});
+  function aiPrompt(){
+    var s=st();
+    function names(where){var it=listText(where);return it.length?it.join(', '):'아직 정하지 않았어요'}
+    var L=[];
+    L.push('저는 초등학교 교사이고, 동료 교사들과 협력적 수업설계를 하고 있어요. 지금은 설계한 수업을 실제 교실로 옮기기 위해 수업 자료를 준비하는 개발·실행(DI) 단계예요.');
+    L.push('');
+    L.push('[우리 팀 수업 설계]');
+    if(s.grade)L.push('- 학년·교과: '+s.grade);
+    L.push('- 주제·내용: '+names('p-content'));
+    L.push('- 길러 줄 역량: '+names('p-comp'));
+    L.push('- 주요 학습활동: '+names('p-func'));
+    L.push('- 산출물·평가: '+names('p-eval'));
+    L.push('- 스캐폴딩: '+(s.scaffold||'아직 정하지 않았어요'));
+    L.push('');
+    L.push('[지금까지 정한 자원] (괄호 안은 담당·마감·메모)');
+    s.zones.forEach(function(n,zi){L.push('- '+(n||('칸 '+(zi+1)))+': '+names('z'+zi))});
+    L.push('');
+    L.push('[부탁]');
+    L.push('1) 주요 학습활동별로 더 필요한 수업 자료(활동지, 읽기 자료, 평가 도구, 스캐폴딩 자료 등)를 추천해 주세요.');
+    L.push('2) 추천한 자료를 "이미 있는 것에서 찾아서 그대로 쓸 것"과 "새로 만들 것"으로 나눠 주세요. 찾아 쓸 것은 어디서 찾을 수 있는지도 알려 주세요.');
+    L.push('3) 새로 만들 자료 가운데 여러 교과가 함께 쓸 수 있어 공동 개발하면 좋은 것을 골라 주세요.');
+    L.push('4) 학생 입장에서 자료를 따라가다 막힐 수 있는 지점과, 지원이 지나치거나 부족할 수 있는 곳을 알려 주세요.');
+    L.push('');
+    L.push('표로 정리해서, 초등 교사가 바로 쓸 수 있게 짧고 구체적으로 답해 주세요. 확실하지 않은 사이트나 자료 이름은 지어내지 말고 "확인 필요"라고 표시해 주세요.');
+    return L.join('\n');
+  }
+  $('ai-copy').addEventListener('click',function(){
+    var o=$('ai-out'),stt=$('status');o.value=aiPrompt();o.hidden=false;
+    function fallback(){o.focus();o.select();stt.textContent='AI 질문이 선택되었어요. 복사해서 AI에 붙여 넣으세요.'}
+    try{navigator.clipboard.writeText(o.value).then(function(){stt.textContent='AI 질문을 복사했어요. 평소 쓰는 AI에 붙여 넣으세요.'},fallback)}catch(e){fallback()}
+  });
   $('scaffold').addEventListener('input',function(){st().scaffold=$('scaffold').value;save()});
   var help=$('help');
   try{if(localStorage.getItem(KEY+'-help')==='closed')help.open=false}catch(e){}
