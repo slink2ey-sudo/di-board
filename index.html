@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>DI 자료 탐색·개발 보드</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+/* Layout: 넓은 화면은 왼쪽 카드 더미(고정) | 오른쪽 ① 우리 설계안 → ②③ 자원 나누기 → 결과. 좁은 화면은 위에서 아래로 쌓기 */
+:root{
+  --bg:#F4F6F1; --surface:#FFFFFF; --ink:#1F2A1C; --muted:#5B6855; --line:#D9E0D2;
+  --deep:#2F6B17; --zone:#EBF0E5; --pick:#E39A12; --pick-soft:#FFF3D9; --danger:#B4381F;
+  --c-content:#6B3FA0; --c-comp:#E3AE1C; --c-func:#3B6FD4; --c-eval:#E2722A; --c-res:#6BA539;
+  --font:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141912; --surface:#1E251B; --ink:#E7EDE2; --muted:#A3B09B; --line:#34402F;
+  --deep:#9CD173; --zone:#192017; --pick:#F2B33D; --pick-soft:#3A2F14; --danger:#F08A70; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141912; --surface:#1E251B; --ink:#E7EDE2; --muted:#A3B09B; --line:#34402F;
+  --deep:#9CD173; --zone:#192017; --pick:#F2B33D; --pick-soft:#3A2F14; --danger:#F08A70; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.5;word-break:keep-all}
+.wrap{max-width:1360px;margin:0 auto;padding-block:20px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px}
+h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.5px;text-wrap:balance}
+.sub{margin:2px 0 0;color:var(--muted);font-size:14px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{font:inherit;font-weight:700;font-size:15px;min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chips button[aria-pressed="true"]{background:var(--deep);border-color:var(--deep);color:var(--bg)}
+.steps{display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:0;list-style:none}
+.steps li{flex:1 1 220px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px;font-size:14px;color:var(--muted)}
+.steps b{display:block;color:var(--ink);font-size:15px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:18px;align-items:start}
+@media (min-width:1100px){.layout{grid-template-columns:380px minmax(0,1fr)}.tray{position:sticky;top:max(12px,env(safe-area-inset-top,0px));max-height:calc(100vh - 24px);overflow:auto}}
+.main{display:flex;flex-direction:column;gap:18px;min-width:0}
+section.box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.box-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+h2{margin:0;font-size:18px;font-weight:700}
+.note{margin:0;color:var(--muted);font-size:13px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px}
+.tabs button{font:inherit;font-weight:700;font-size:14px;min-height:40px;padding:0 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:flex;align-items:center;gap:6px}
+.tabs button i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.tabs button[aria-pressed="true"]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,118px));justify-content:start;gap:10px;min-height:70px;border-radius:12px;padding:4px;align-content:start;transition:background .15s}
+.slots{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:980px){.slots{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.zones{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:820px){.zones{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.slots{grid-template-columns:minmax(0,1fr)}}
+.zone{background:var(--zone);border:2px dashed var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0;transition:border-color .15s,background .15s}
+.zone.over,.grid.over{border-color:var(--pick);background:var(--pick-soft)}
+.slot-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;padding:4px 4px 0}
+.slot-title i{width:12px;height:12px;border-radius:3px;flex:none}
+.zone-title{font:inherit;font-weight:700;font-size:15px;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;padding:5px 6px;width:100%}
+.zone-title:hover{border-color:var(--line)}
+.zone-title:focus{outline:2px solid var(--pick);background:var(--surface)}
+.zone .grid{min-height:120px}
+.drop{font:inherit;font-weight:700;min-height:44px;border-radius:10px;border:none;background:var(--pick);color:#2A1A00;cursor:pointer}
+.empty{grid-column:1/-1;color:var(--muted);font-size:13px;text-align:center;align-self:center;padding:14px 6px}
+
+/* 수업설계 카드 */
+.cardwrap{display:flex;flex-direction:column;gap:5px;min-width:0}
+.card{position:relative;display:flex;flex-direction:column;width:100%;aspect-ratio:5/7;border-radius:9px;overflow:hidden;background:#FFFFFF;border:1px solid #D5DBCF;box-shadow:0 2px 4px rgba(20,40,10,.10);cursor:grab;padding:0;font:inherit;color:#1E1E1E;text-align:center;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.card .head{color:#FFFFFF;font-size:12px;font-weight:500;padding:5px 0;letter-spacing:.3px}
+.card .name{flex:1;display:flex;align-items:center;justify-content:center;padding:4px 6px 14px;font-weight:700;font-size:14px;line-height:1.3;white-space:pre-line}
+.card.ai .name{color:#3F8A24}
+.card.sel{outline:4px solid var(--pick);outline-offset:2px;box-shadow:0 8px 18px rgba(0,0,0,.18);transform:translateY(-3px)}
+.card:focus-visible{outline:3px solid var(--pick);outline-offset:2px}
+.card input.label{font:inherit;font-weight:700;font-size:13px;width:100%;border:none;border-bottom:1.5px dashed #B9C2B1;background:transparent;text-align:center;color:#1E1E1E;padding:3px 0}
+.card input.label:focus{outline:none;border-bottom-color:var(--pick)}
+.card .x{position:absolute;right:3px;bottom:2px;font-size:11px;color:#7A8374;background:none;border:none;cursor:pointer;padding:2px 4px}
+.memo{font:inherit;font-size:13px;width:100%;min-height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:5px 7px}
+.memo:focus{outline:2px solid var(--pick)}
+.actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{font:inherit;font-weight:700;min-height:44px;padding:0 16px;border-radius:10px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--deep);border-color:var(--deep);color:var(--bg)}
+.btn.warn{color:var(--danger);border-color:var(--danger)}
+.btn:focus-visible,.chips button:focus-visible,.tabs button:focus-visible,.drop:focus-visible{outline:3px solid var(--pick);outline-offset:2px}
+.status{color:var(--muted);font-size:14px;flex-basis:100%}
+textarea#out{width:100%;min-height:200px;font:inherit;font-size:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);padding:10px}
+#preview{display:flex;flex-direction:column;gap:8px}
+#preview img{width:100%;border:1px solid var(--line);border-radius:10px;background:#fff}
+.scaf{background:var(--zone);border:2px dashed var(--line);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.scaf .note{font-weight:400;margin-left:4px}
+.scaf-in{font-size:15px;min-height:44px}
+details.help{background:var(--surface);border:1.5px solid var(--deep);border-radius:14px;padding:0 16px}
+details.help summary{cursor:pointer;list-style:none;min-height:48px;display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:700;font-size:16px;color:var(--deep)}
+details.help summary::-webkit-details-marker{display:none}
+details.help summary::after{content:"펼치기";font-size:13px;font-weight:500;color:var(--muted)}
+details.help[open] summary::after{content:"접기"}
+details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:2px;border-radius:8px}
+.help-body{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;padding:4px 0 16px}
+.help-body section{min-width:0}
+.help-body h3{margin:0 0 6px;font-size:15px;color:var(--ink)}
+.help-body ul,.help-body ol{margin:0;padding-left:20px;color:var(--ink);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.help-body .tip{margin:6px 0 0;padding:8px 10px;border-radius:8px;background:var(--pick-soft);font-size:13px;color:var(--ink)}
+.help-body kbd{font:inherit;font-weight:700;background:var(--pick);color:#2A1A00;border-radius:6px;padding:0 6px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}.card.sel{transform:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>DI 자료 탐색·개발 보드</h1>
+      <p class="sub">설계를 종이에서 교실로 옮기는 첫걸음 · 수업설계카드로 협의하기</p>
+    </div>
+    <div class="chips" id="teams" role="group" aria-label="팀 선택"></div>
+  </header>
+
+  <details class="help" id="help" open>
+    <summary>사용 방법</summary>
+    <div class="help-body">
+      <section>
+        <h3>1. 카드 옮기기</h3>
+        <ul>
+          <li><b>노트북·크롬북(마우스)</b>: 카드를 끌어서 칸에 놓아요.</li>
+          <li><b>휴대폰·태블릿·터치</b>: 카드를 한 번 누르고, 놓을 칸의 <kbd>여기에 놓기</kbd>를 눌러요.</li>
+          <li>다시 빼려면 카드를 누르고 더미의 <kbd>더미로 되돌리기</kbd>를 눌러요.</li>
+          <li>빈 카드나 <b>+ 새 카드</b>에는 이름을 직접 써요.</li>
+        </ul>
+      </section>
+      <section>
+        <h3>2. 진행 순서 (10분)</h3>
+        <ol>
+          <li><b>① 설계안 확인 · 2분</b>: 내용·역량·기능·평가카드로 Ds에서 정한 수업을 다시 꺼내 놓아요.</li>
+          <li><b>② 필요 자료 나열 · 4분</b>: 활동에 필요한 자원카드를 모두 꺼내요. 확보 가능성은 따지지 않아요.</li>
+          <li><b>③ 역할 분담 · 4분</b>: 자원을 탐색 / 공동 개발 / 개별 개발 칸에 나누고 담당·마감을 적어요.</li>
+        </ol>
+        <p class="tip">카드는 자원의 <b>종류</b>예요. 메모 칸에 구체적인 자료명을 꼭 적어 주세요. 예: 인터넷자료 → 대기질 공공데이터 / 김○○ / 10.26.</p>
+      </section>
+      <section>
+        <h3>3. 결과 올리기</h3>
+        <ul>
+          <li><b>이미지로 저장</b>을 눌러 PNG를 받고, 패들렛 게시물에 올려요.</li>
+          <li><b>글 복사</b>를 눌러 같은 게시물 본문에 붙여 넣어요.</li>
+          <li>최종 기록은 팀장님 워크시트 DI-1 ①~③에 옮겨 적어요.</li>
+        </ul>
+        <p class="tip">정리한 내용은 <b>지금 이 기기에만</b> 남아요. 협의가 끝나면 바로 저장해서 올려 주세요. 맨 위에서 팀 번호를 먼저 골라야 해요.</p>
+      </section>
+    </div>
+  </details>
+
+
+  <div class="layout">
+    <section class="box tray" aria-labelledby="tray-h">
+      <div class="box-head">
+        <h2 id="tray-h">카드 더미</h2>
+        <button class="btn" id="add" type="button">+ 새 카드</button>
+      </div>
+      <div class="tabs" id="tabs" role="group" aria-label="카드 종류"></div>
+      <p class="note">카드를 끌어다 놓거나, 카드를 누른 뒤 노란 <b>여기에 놓기</b> 버튼을 누르세요.</p>
+      <button class="drop" id="drop-deck" type="button" hidden>선택한 카드를 더미로 되돌리기</button>
+      <div class="grid" id="deck"></div>
+    </section>
+
+    <div class="main">
+      <section class="box" aria-labelledby="plan-h">
+        <div class="box-head"><h2 id="plan-h">① 우리 설계안</h2><p class="note">상호의존 · Ds-3 학습활동, Ds-5 스캐폴딩 다시 보기</p></div>
+        <div class="slots" id="slots"></div>
+        <div class="scaf">
+          <label for="scaffold" class="slot-title"><i style="background:var(--muted)"></i>스캐폴딩 <span class="note">Ds-5에서 정한 지원을 한 줄로 적어요</span></label>
+          <input id="scaffold" class="memo scaf-in" placeholder="예: 그래프 해석이 어려운 모둠에 ‘원인과 현상 구분’ 질문 카드를 제공한다.">
+        </div>
+      </section>
+
+      <section class="box" aria-labelledby="res-h">
+        <div class="box-head"><h2 id="res-h">②③ 자원 나누기</h2><p class="note">외현화 · 조정 · 칸 이름은 눌러서 바꿀 수 있어요</p></div>
+        <div class="zones" id="zones"></div>
+      </section>
+
+      <section class="box" aria-labelledby="out-h">
+        <div class="box-head">
+          <h2 id="out-h">결과 정리</h2>
+          <div class="actions">
+            <button class="btn primary" id="img" type="button">이미지로 저장</button>
+            <button class="btn" id="copy" type="button">글 복사</button>
+            <button class="btn warn" id="reset" type="button">처음부터</button>
+            <button class="btn warn" id="reset-yes" type="button" hidden>네, 이 팀 보드를 비울게요</button>
+            <button class="btn" id="reset-no" type="button" hidden>취소</button>
+          </div>
+        </div>
+        <p class="status" id="status" role="status"></p>
+        <div id="preview" hidden>
+          <p class="note">저장 창이 열리지 않으면 이미지를 길게 누르거나(휴대폰·태블릿) 오른쪽 클릭해서 저장하세요.</p>
+          <img id="preview-img" alt="정리 결과 이미지">
+        </div>
+        <textarea id="out" readonly aria-label="정리 결과 글"></textarea>
+      </section>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var TYPES=[
+    {k:'content',name:'내용카드',tab:'내용',color:'#6B3FA0',slot:'주제 · 내용',cards:['지구온난화','공정무역','재해','불평등','환경','안전','지역사회문제','사이버폭력','미래사회','진로','다문화','저출산/\n고령화','']},
+    {k:'comp',name:'역량카드',tab:'역량',color:'#E3AE1C',slot:'길러 줄 역량',cards:['자기관리\n역량','지식정보처리\n역량','창의적 사고\n역량','심미적 감성\n역량','협력적 소통\n역량','공동체\n역량']},
+    {k:'func',name:'기능카드',tab:'기능',color:'#3B6FD4',slot:'주요 학습활동',cards:['분석/\n해석하기','토의/\n토론하기','제안하기','예측하기','성찰하기','비교하기','설계하기','발표하기','조사하기','분류하기','평가하기','표현하기','문제확인하기','제작하기','']},
+    {k:'eval',name:'평가카드',tab:'평가',color:'#E2722A',slot:'산출물 · 평가',cards:['서술형/\n논술형 평가','구술/\n면접 평가','실기 평가','실험실습\n평가','관찰 평가','보고서 평가','포트폴리오\n평가','선택형 평가','']},
+    {k:'res',name:'자원카드',tab:'자원',color:'#6BA539',slot:null,cards:['파워포인트','점착메모지','마인드맵','유투브','클라우드\n서비스','온라인지도','SNS','지역사회','동영상제작\n프로그램','인터넷자료','온라인대화\n프로그램','전문가','책/신문','인공지능','']}
+  ];
+  var T={};TYPES.forEach(function(t){T[t.k]=t});
+  var ZONES=['탐색해서 쓸 자원','공동 개발에 쓸 자원','개별 개발에 쓸 자원'];
+  var KEY='design-board-v2';
+  var team=1, tab='content', selected=null, all={};
+
+  function fresh(){
+    var c={},n=0;
+    TYPES.forEach(function(t){t.cards.forEach(function(l,i){var id=t.k+'-'+i;c[id]={type:t.k,label:l,custom:l==='',base:true,where:null,memo:'',order:n++}})});
+    return {zones:ZONES.slice(),cards:c,seq:1000,scaffold:''};
+  }
+  try{var raw=localStorage.getItem(KEY);if(raw)all=JSON.parse(raw)||{}}catch(e){all={}}
+  try{var tt=parseInt(localStorage.getItem(KEY+'-team'),10);if(tt>=1&&tt<=5)team=tt}catch(e){}
+  function st(){if(!all[team])all[team]=fresh();return all[team]}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(all));localStorage.setItem(KEY+'-team',String(team))}catch(e){}summary()}
+  var $=function(id){return document.getElementById(id)};
+  function one(l){return (l||'').replace(/\n/g,' ').replace(/\/ /g,'/')}
+
+  function valid(id,where){
+    var c=st().cards[id];if(!c)return false;
+    if(where===null)return c.where!==null;
+    if(where===c.where)return false;
+    if(where.indexOf('p-')===0)return where==='p-'+c.type&&c.type!=='res';
+    return c.type==='res';
+  }
+  function move(id,where){
+    if(!id||!valid(id,where))return;
+    var s=st(),c=s.cards[id];c.where=where;
+    if(where===null){c.order=c.base?TYPES.reduce(function(a,t){return a},0)+parseInt(id.split('-')[1]||0,10):c.order}else{s.seq++;c.order=s.seq}
+    if(where===null)tab=c.type;
+    selected=null;save();render();
+  }
+
+  function cardEl(id,c){
+    var t=T[c.type],w=document.createElement('div');w.className='cardwrap';
+    var b=document.createElement(c.custom?'div':'button');
+    b.className='card'+(c.label==='인공지능'?' ai':'')+(selected===id?' sel':'');
+    b.draggable=true;b.dataset.id=id;
+    var nm=one(c.label)||'직접 쓰는 카드';
+    if(c.custom){b.tabIndex=0;b.setAttribute('role','button')}else b.type='button';
+    b.setAttribute('aria-label',t.name+' '+nm+(selected===id?', 선택됨':''));
+    var h=document.createElement('div');h.className='head';h.style.background=t.color;h.textContent=t.name;b.appendChild(h);
+    var n=document.createElement('div');n.className='name';
+    if(c.custom){
+      var inp=document.createElement('input');inp.className='label';inp.value=c.label;inp.placeholder='직접 쓰기';inp.id='lbl-'+team+'-'+id;inp.setAttribute('aria-label',t.name+' 이름 직접 쓰기');
+      inp.addEventListener('input',function(){c.label=inp.value;save()});
+      ['click','mousedown','keydown'].forEach(function(ev){inp.addEventListener(ev,function(e){e.stopPropagation()})});
+      n.appendChild(inp);
+      if(!c.base){var x=document.createElement('button');x.className='x';x.type='button';x.textContent='삭제';x.setAttribute('aria-label','이 카드 삭제');x.addEventListener('click',function(e){e.stopPropagation();delete st().cards[id];if(selected===id)selected=null;save();render()});b.appendChild(x)}
+    }else n.textContent=c.label;
+    b.appendChild(n);
+    function pick(){selected=(selected===id?null:id);render()}
+    b.addEventListener('click',pick);
+    if(c.custom)b.addEventListener('keydown',function(e){if((e.key==='Enter'||e.key===' ')&&e.target===b){e.preventDefault();pick()}});
+    b.addEventListener('dragstart',function(e){selected=id;try{e.dataTransfer.setData('text/plain',id);e.dataTransfer.effectAllowed='move'}catch(_){}});
+    b.addEventListener('dragend',function(){document.querySelectorAll('.over').forEach(function(el){el.classList.remove('over')})});
+    w.appendChild(b);
+    if(c.where!==null){
+      var m=document.createElement('input');m.className='memo';m.value=c.memo||'';m.id='memo-'+team+'-'+id;
+      m.placeholder=c.type==='res'?'담당 · 마감':'메모';m.setAttribute('aria-label',nm+' '+m.placeholder);
+      m.addEventListener('input',function(){c.memo=m.value;save()});
+      w.appendChild(m);
+    }
+    return w;
+  }
+
+  function wireDrop(el,where){
+    el.addEventListener('dragover',function(e){if(selected&&valid(selected,where)){e.preventDefault();el.classList.add('over')}});
+    el.addEventListener('dragleave',function(e){if(!el.contains(e.relatedTarget))el.classList.remove('over')});
+    el.addEventListener('drop',function(e){e.preventDefault();el.classList.remove('over');var id='';try{id=e.dataTransfer.getData('text/plain')}catch(_){}move(id||selected,where)});
+  }
+  function inWhere(where){var s=st();return Object.keys(s.cards).filter(function(k){return s.cards[k].where===where}).sort(function(a,b){return s.cards[a].order-s.cards[b].order})}
+  function dropBtn(where,label){var d=document.createElement('button');d.className='drop';d.type='button';d.textContent=label||'여기에 놓기';d.addEventListener('click',function(){move(selected,where)});return d}
+  function fill(g,ids,emptyText){var s=st();ids.forEach(function(k){g.appendChild(cardEl(k,s.cards[k]))});if(!ids.length){var e=document.createElement('div');e.className='empty';e.textContent=emptyText;g.appendChild(e)}}
+
+  function render(){
+    var s=st();
+    var tb=$('teams');tb.innerHTML='';
+    for(var i=1;i<=5;i++){(function(n){var b=document.createElement('button');b.type='button';b.textContent=n+'팀';b.setAttribute('aria-pressed',n===team?'true':'false');b.addEventListener('click',function(){team=n;selected=null;$('preview').hidden=true;save();render()});tb.appendChild(b)})(i)}
+    var tabs=$('tabs');tabs.innerHTML='';
+    TYPES.forEach(function(t){var left=Object.keys(s.cards).filter(function(k){return s.cards[k].type===t.k&&s.cards[k].where===null}).length;
+      var b=document.createElement('button');b.type='button';b.setAttribute('aria-pressed',tab===t.k?'true':'false');
+      var dot=document.createElement('i');dot.style.background=t.color;b.appendChild(dot);b.appendChild(document.createTextNode(t.tab+' '+left));
+      b.addEventListener('click',function(){tab=t.k;render()});tabs.appendChild(b)});
+    var deck=Object.keys(s.cards).filter(function(k){return s.cards[k].type===tab&&s.cards[k].where===null}).sort(function(a,b){return s.cards[a].order-s.cards[b].order});
+    var dg=$('deck');dg.innerHTML='';fill(dg,deck,'이 종류의 카드를 모두 꺼냈어요.');
+    $('drop-deck').hidden=!(selected&&valid(selected,null));
+    var sl=$('slots');sl.innerHTML='';
+    TYPES.filter(function(t){return t.slot}).forEach(function(t){
+      var where='p-'+t.k,z=document.createElement('div');z.className='zone';
+      var h=document.createElement('div');h.className='slot-title';var i=document.createElement('i');i.style.background=t.color;h.appendChild(i);h.appendChild(document.createTextNode(t.slot));z.appendChild(h);
+      if(selected&&valid(selected,where))z.appendChild(dropBtn(where));
+      var g=document.createElement('div');g.className='grid';fill(g,inWhere(where),t.tab+'카드를 놓으세요');z.appendChild(g);
+      wireDrop(z,where);sl.appendChild(z)});
+    var sc=$('scaffold');if(document.activeElement!==sc)sc.value=s.scaffold||'';
+    var zs=$('zones');zs.innerHTML='';
+    s.zones.forEach(function(name,zi){
+      var where='z'+zi,z=document.createElement('div');z.className='zone';
+      var t=document.createElement('input');t.className='zone-title';t.value=name;t.id='zone-'+team+'-'+zi;t.setAttribute('aria-label',(zi+1)+'번 칸 이름');
+      t.addEventListener('input',function(){s.zones[zi]=t.value;save()});z.appendChild(t);
+      if(selected&&valid(selected,where))z.appendChild(dropBtn(where));
+      var g=document.createElement('div');g.className='grid';fill(g,inWhere(where),'자원카드를 놓으세요');z.appendChild(g);
+      wireDrop(z,where);zs.appendChild(z)});
+    summary();
+  }
+
+  function listText(where){var s=st();return inWhere(where).map(function(k){var c=s.cards[k],l=one(c.label)||'(이름 없음)';return c.memo?l+'('+c.memo+')':l})}
+  function summary(){
+    var s=st(),L=['['+team+'팀] DI-1 자료 탐색·개발 정리','','① 우리 설계안'];
+    TYPES.filter(function(t){return t.slot}).forEach(function(t){var it=listText('p-'+t.k);L.push('- '+t.slot+': '+(it.length?it.join(', '):'없음'))});
+    L.push('- 스캐폴딩: '+(s.scaffold?s.scaffold:'없음'));
+    L.push('','②③ 자원 나누기');
+    s.zones.forEach(function(n,zi){var it=listText('z'+zi);L.push('- '+(n||('칸 '+(zi+1)))+': '+(it.length?it.join(', '):'없음'))});
+    $('out').value=L.join('\n');
+  }
+
+  /* ---------- 이미지 만들기 (캔버스) ---------- */
+  var FF='"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",sans-serif';
+  function wrapLines(ctx,text,maxW){
+    var out=[];String(text).split('\n').forEach(function(par){var line='';for(var i=0;i<par.length;i++){var t=line+par[i];if(ctx.measureText(t).width>maxW&&line){out.push(line);line=par[i]}else line=t}out.push(line)});return out;
+  }
+  function rr(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+  var CW=124,CH=168,MEMO=40,GAP=14;
+  function drawCard(ctx,x,y,c){
+    var t=T[c.type];
+    ctx.save();ctx.shadowColor='rgba(0,0,0,0.12)';ctx.shadowBlur=6;ctx.shadowOffsetY=2;rr(ctx,x,y,CW,CH,10);ctx.fillStyle='#FFFFFF';ctx.fill();ctx.restore();
+    ctx.save();rr(ctx,x,y,CW,CH,10);ctx.clip();ctx.fillStyle=t.color;ctx.fillRect(x,y,CW,30);ctx.restore();
+    ctx.strokeStyle='#D5DBCF';ctx.lineWidth=1;rr(ctx,x+.5,y+.5,CW-1,CH-1,10);ctx.stroke();
+    ctx.fillStyle='#FFFFFF';ctx.font='500 14px '+FF;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(t.name,x+CW/2,y+15);
+    ctx.fillStyle=c.label==='인공지능'?'#3F8A24':'#1E1E1E';ctx.font='700 17px '+FF;
+    var lines=wrapLines(ctx,c.label||'(이름 없음)',CW-14),lh=22,y0=y+30+(CH-30-10)/2-(lines.length-1)*lh/2;
+    lines.forEach(function(l,i){ctx.fillText(l,x+CW/2,y0+i*lh)});
+    if(c.memo){ctx.fillStyle='#3E4A38';ctx.font='500 14px '+FF;var ml=wrapLines(ctx,c.memo,CW).slice(0,2);ml.forEach(function(l,i){ctx.fillText(l,x+CW/2,y+CH+14+i*18)})}
+  }
+  function boxHeight(n,cols){var rows=Math.max(1,Math.ceil(n/cols));return 44+rows*(CH+MEMO)+(rows-1)*GAP+16}
+  function drawBox(ctx,x,y,w,h,title,color,ids){
+    var s=st();rr(ctx,x,y,w,h,14);ctx.fillStyle='#F1F5EC';ctx.fill();
+    ctx.textAlign='left';ctx.textBaseline='middle';
+    if(color){ctx.fillStyle=color;rr(ctx,x+16,y+16,14,14,3);ctx.fill()}
+    ctx.fillStyle='#1F2A1C';ctx.font='700 19px '+FF;ctx.fillText(title,x+(color?40:16),y+23);
+    var cols=Math.max(1,Math.floor((w-32+GAP)/(CW+GAP)));
+    if(!ids.length){ctx.fillStyle='#7A8374';ctx.font='500 15px '+FF;ctx.fillText('없음',x+16,y+70);return}
+    ids.forEach(function(k,i){drawCard(ctx,x+16+(i%cols)*(CW+GAP),y+44+Math.floor(i/cols)*(CH+MEMO+GAP),s.cards[k])});
+  }
+  function buildImage(){
+    var s=st(),W=1600,P=48,canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+    var plan=TYPES.filter(function(t){return t.slot}),pw=(W-2*P-3*20)/4,zw=(W-2*P-2*20)/3;
+    var pcols=Math.max(1,Math.floor((pw-32+GAP)/(CW+GAP))),zcols=Math.max(1,Math.floor((zw-32+GAP)/(CW+GAP)));
+    var ph=Math.max.apply(null,plan.map(function(t){return boxHeight(inWhere('p-'+t.k).length,pcols)}));
+    var zh=Math.max.apply(null,s.zones.map(function(n,zi){return boxHeight(inWhere('z'+zi).length,zcols)}));
+    ctx.font='500 18px '+FF;var scl=wrapLines(ctx,s.scaffold||'없음',W-2*P-150),sch=Math.max(56,20+scl.length*26);
+    var H=P+60+30+44+ph+16+sch+40+44+zh+70;
+    var dpr=2;canvas.width=W*dpr;canvas.height=H*dpr;ctx.scale(dpr,dpr);
+    ctx.fillStyle='#FFFFFF';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#2F6B17';ctx.fillRect(0,0,W,10);
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#1F2A1C';ctx.font='700 38px '+FF;ctx.fillText(team+'팀 · DI-1 자료 탐색·개발 정리',P,P+40);
+    ctx.fillStyle='#5B6855';ctx.font='500 18px '+FF;ctx.fillText('협력적 수업설계 · 성북강북 감동수업워크숍',P,P+74);
+    var y=P+110;
+    ctx.fillStyle='#2F6B17';ctx.font='700 24px '+FF;ctx.fillText('① 우리 설계안',P,y+26);y+=44;
+    plan.forEach(function(t,i){drawBox(ctx,P+i*(pw+20),y,pw,ph,t.slot,t.color,inWhere('p-'+t.k))});
+    y+=ph+16;
+    rr(ctx,P,y,W-2*P,sch,14);ctx.fillStyle='#F1F5EC';ctx.fill();
+    ctx.textAlign='left';ctx.textBaseline='middle';ctx.fillStyle='#1F2A1C';ctx.font='700 19px '+FF;ctx.fillText('스캐폴딩',P+16,y+28);
+    ctx.fillStyle=s.scaffold?'#1F2A1C':'#7A8374';ctx.font='500 18px '+FF;scl.forEach(function(l,i){ctx.fillText(l,P+130,y+28+i*26)});
+    y+=sch+40;
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#2F6B17';ctx.font='700 24px '+FF;ctx.fillText('②③ 자원 나누기',P,y+26);y+=44;
+    s.zones.forEach(function(n,zi){drawBox(ctx,P+zi*(zw+20),y,zw,zh,n||('칸 '+(zi+1)),null,inWhere('z'+zi))});
+    return canvas;
+  }
+  async function saveImage(){
+    var stt=$('status');stt.textContent='이미지를 만드는 중이에요…';
+    try{await document.fonts.load('700 17px "IBM Plex Sans KR"');await document.fonts.load('500 14px "IBM Plex Sans KR"')}catch(e){}
+    var canvas=buildImage();
+    var url=canvas.toDataURL('image/png');$('preview-img').src=url;$('preview').hidden=false;
+    var blob=await new Promise(function(r){canvas.toBlob(r,'image/png')});
+    var dl=null;try{dl=window.claude&&window.claude.use?await window.claude.use('downloads'):null}catch(e){dl=null}
+    if(!dl||!blob){
+      try{var a=document.createElement('a');a.href=blob?URL.createObjectURL(blob):url;a.download=team+'팀_DI-1_정리.png';document.body.appendChild(a);a.click();a.remove();stt.textContent='이미지를 저장했어요. 다운로드 폴더를 확인하고 패들렛에 올려 주세요. 저장되지 않았다면 아래 이미지를 길게 누르거나 오른쪽 클릭해서 저장하세요.'}
+      catch(e){stt.textContent='아래 이미지를 길게 누르거나 오른쪽 클릭해서 저장하세요.'}
+      return}
+    try{await dl.save({filename:team+'팀_DI-1_정리.png',data:blob});stt.textContent='이미지를 저장했어요. 패들렛에 올려 주세요.'}
+    catch(e){var code=e&&e.code;stt.textContent=code==='declined'?'저장을 취소했어요. 아래 이미지를 직접 저장할 수도 있어요.':(code==='rate_limited'?'저장 창이 이미 열려 있어요. 잠시 뒤 다시 눌러 주세요.':'아래 이미지를 길게 누르거나 오른쪽 클릭해서 저장하세요.')}
+  }
+
+  wireDrop($('deck'),null);
+  $('drop-deck').addEventListener('click',function(){move(selected,null)});
+  $('add').addEventListener('click',function(){var s=st();var id=tab+'-u'+Date.now().toString(36);s.seq++;s.cards[id]={type:tab,label:'',custom:true,base:false,where:null,memo:'',order:s.seq};save();render();var el=$('lbl-'+team+'-'+id);if(el)el.focus()});
+  $('img').addEventListener('click',saveImage);
+  $('copy').addEventListener('click',function(){
+    var txt=$('out').value,stt=$('status');
+    function fallback(){var o=$('out');o.focus();o.select();stt.textContent='글이 선택되었어요. 복사해서 붙여 넣으세요.'}
+    try{navigator.clipboard.writeText(txt).then(function(){stt.textContent='글을 복사했어요. 패들렛 게시물에 붙여 넣으세요.'},fallback)}catch(e){fallback()}
+  });
+  function confirmMode(on){$('reset').hidden=on;$('reset-yes').hidden=!on;$('reset-no').hidden=!on}
+  $('reset').addEventListener('click',function(){confirmMode(true)});
+  $('reset-no').addEventListener('click',function(){confirmMode(false)});
+  $('reset-yes').addEventListener('click',function(){all[team]=fresh();selected=null;tab='content';confirmMode(false);$('preview').hidden=true;save();render();$('status').textContent=team+'팀 보드를 처음 상태로 되돌렸어요.'});
+
+  $('scaffold').addEventListener('input',function(){st().scaffold=$('scaffold').value;save()});
+  var help=$('help');
+  try{if(localStorage.getItem(KEY+'-help')==='closed')help.open=false}catch(e){}
+  help.addEventListener('toggle',function(){try{localStorage.setItem(KEY+'-help',help.open?'open':'closed')}catch(e){}});
+
+  render();
+})();
+</script>
+
+</body>
+</html>
