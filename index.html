@@ -59,7 +59,11 @@ h2{margin:0;font-size:18px;font-weight:700}
 .zone-title{font:inherit;font-weight:700;font-size:15px;line-height:1.35;resize:none;overflow:hidden;min-height:2.9em;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;padding:5px 6px;width:100%}
 .zone-title:hover{border-color:var(--line)}
 .zone-title:focus{outline:2px solid var(--pick);background:var(--surface)}
-.zone .grid{min-height:120px}
+.zone .grid{min-height:120px;grid-template-columns:repeat(auto-fill,minmax(78px,86px));gap:8px}
+.zone .card .head{font-size:10.5px;padding:3px 0}
+.zone .card .name{font-size:12.5px;padding:3px 4px 10px}
+.zone .card input.label{font-size:12px}
+.zone .memo{font-size:12px;min-height:30px;padding:4px 5px}
 .drop{font:inherit;font-weight:700;min-height:44px;border-radius:10px;border:none;background:var(--pick);color:#2A1A00;cursor:pointer}
 .empty{grid-column:1/-1;color:var(--muted);font-size:13px;text-align:center;align-self:center;padding:14px 6px}
 
