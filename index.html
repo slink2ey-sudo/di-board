@@ -56,7 +56,7 @@ h2{margin:0;font-size:18px;font-weight:700}
 .zone.over,.grid.over{border-color:var(--pick);background:var(--pick-soft)}
 .slot-title{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;padding:4px 4px 0}
 .slot-title i{width:12px;height:12px;border-radius:3px;flex:none}
-.zone-title{font:inherit;font-weight:700;font-size:15px;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;padding:5px 6px;width:100%}
+.zone-title{font:inherit;font-weight:700;font-size:15px;line-height:1.35;resize:none;overflow:hidden;min-height:2.9em;color:var(--ink);background:transparent;border:1px solid transparent;border-radius:8px;padding:5px 6px;width:100%}
 .zone-title:hover{border-color:var(--line)}
 .zone-title:focus{outline:2px solid var(--pick);background:var(--surface)}
 .zone .grid{min-height:120px}
@@ -131,7 +131,7 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
         <ol>
           <li><b>① 설계안 확인 · 2분</b>: 내용·역량·기능·평가카드로 Ds에서 정한 수업을 다시 꺼내 놓아요.</li>
           <li><b>② 필요 자료 나열 · 4분</b>: 활동에 필요한 자원카드를 모두 꺼내요. 확보 가능성은 따지지 않아요.</li>
-          <li><b>③ 역할 분담 · 4분</b>: 자원을 탐색 / 공동 개발 / 개별 개발 칸에 나누고 담당·마감을 적어요.</li>
+          <li><b>③ 역할 분담 · 4분</b>: 자원을 ‘찾아서 그대로 쓸 것 / 함께 만들 것 / 각자 만들 것’ 칸에 나누고 담당·마감을 적어요.</li>
         </ol>
         <p class="tip">카드는 자원의 <b>종류</b>예요. 메모 칸에 구체적인 자료명을 꼭 적어 주세요. 예: 인터넷자료 → 대기질 공공데이터 / 김○○ / 10.26.</p>
       </section>
@@ -207,7 +207,8 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
     {k:'res',name:'자원카드',tab:'자원',color:'#6BA539',slot:null,cards:['파워포인트','점착메모지','마인드맵','유투브','클라우드\n서비스','온라인지도','SNS','지역사회','동영상제작\n프로그램','인터넷자료','온라인대화\n프로그램','전문가','책/신문','인공지능','']}
   ];
   var T={};TYPES.forEach(function(t){T[t.k]=t});
-  var ZONES=['탐색해서 쓸 자원','공동 개발에 쓸 자원','개별 개발에 쓸 자원'];
+  var ZONES=['이미 있는 것에서 찾아서 그대로 쓸 것','함께 만들 자원 (공동 개발)','각자 만들 자원 (개별 개발)'];
+  var OLDZ=['탐색해서 쓸 자원','공동 개발에 쓸 자원','개별 개발에 쓸 자원'];
   var KEY='design-board-v2';
   var team=1, tab='content', selected=null, all={};
 
@@ -218,6 +219,7 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
   }
   try{var raw=localStorage.getItem(KEY);if(raw)all=JSON.parse(raw)||{}}catch(e){all={}}
   try{var tt=parseInt(localStorage.getItem(KEY+'-team'),10);if(tt>=1&&tt<=5)team=tt}catch(e){}
+  Object.keys(all).forEach(function(k){var z=all[k]&&all[k].zones;if(z)z.forEach(function(n,i){if(n===OLDZ[i])z[i]=ZONES[i]})});
   function st(){if(!all[team])all[team]=fresh();return all[team]}
   function save(){try{localStorage.setItem(KEY,JSON.stringify(all));localStorage.setItem(KEY+'-team',String(team))}catch(e){}summary()}
   var $=function(id){return document.getElementById(id)};
@@ -303,7 +305,7 @@ details.help summary:focus-visible{outline:3px solid var(--pick);outline-offset:
     var zs=$('zones');zs.innerHTML='';
     s.zones.forEach(function(name,zi){
       var where='z'+zi,z=document.createElement('div');z.className='zone';
-      var t=document.createElement('input');t.className='zone-title';t.value=name;t.id='zone-'+team+'-'+zi;t.setAttribute('aria-label',(zi+1)+'번 칸 이름');
+      var t=document.createElement('textarea');t.rows=2;t.className='zone-title';t.value=name;t.id='zone-'+team+'-'+zi;t.setAttribute('aria-label',(zi+1)+'번 칸 이름');
       t.addEventListener('input',function(){s.zones[zi]=t.value;save()});z.appendChild(t);
       if(selected&&valid(selected,where))z.appendChild(dropBtn(where));
       var g=document.createElement('div');g.className='grid';fill(g,inWhere(where),'자원카드를 놓으세요');z.appendChild(g);
